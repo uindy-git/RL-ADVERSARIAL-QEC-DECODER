@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+
+# Generated data/figures
+figures/
+models/
+
+# IDE files
+.vscode/
+.idea/
