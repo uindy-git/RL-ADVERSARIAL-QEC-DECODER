@@ -3,7 +3,8 @@ import numpy as np
 import torch
 from scipy.spatial.distance import cdist
 
-from utils import create_flattened_graph_from_shot, cultivate_edge_weights
+from src.utils import create_flattened_graph_from_shot, cultivate_edge_weights
+
 
 def create_dataset_from_shots(directories):
     circuit = stim.Circuit.from_file(directories.get("circuit", "circuit_ideal.stim"))

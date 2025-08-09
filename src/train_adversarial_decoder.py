@@ -8,14 +8,15 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 import os
 
-def train_adversarial_GAT_decoder(normal_model, rl_model, num_rounds, dataset, directories):
+from src.utils import seed_worker
+
+def train_adversarial_GAT_decoder(normal_model, rl_model, num_rounds, dataset, directories, device, seed=42):
     """
     Train the Adversarial GAT decoder model on the dataset created from shots.
     """
     print("--- Start Training Adversarial GAT Decoder ---")
 
     gat_model = deepcopy(normal_model)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     gat_model.to(device)
     rl_model.to(device)
     rl_model.eval()
@@ -23,9 +24,11 @@ def train_adversarial_GAT_decoder(normal_model, rl_model, num_rounds, dataset, d
     # --- 1. Prepare Data Loaders ---
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True) # Fewer samples per batch for adversarial training
-    test_loader = DataLoader(test_dataset, batch_size=32)
+    g = torch.Generator()
+    g.manual_seed(seed)  # Ensure reproducibility in data splitting
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size], generator=g)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, worker_init_fn=seed_worker, generator=g) # Fewer samples per batch for adversarial training
+    test_loader = DataLoader(test_dataset, batch_size=32, worker_init_fn=seed_worker, generator=g)
 
     all_labels = torch.cat([data.y for data in dataset])
     pos_weight = (all_labels == 0).sum() / (all_labels == 1).sum()
@@ -120,7 +123,6 @@ def train_adversarial_GAT_decoder(normal_model, rl_model, num_rounds, dataset, d
     # --- 5. Save the trained model ---
     robust_gat_model_path = directories.get("robust_gat_model", "robust_gat_model.pth")
     torch.save(gat_model.state_dict(), robust_gat_model_path)
-    gat_model.to("cpu")
     print(f"Robust GAT decoder model saved to '{robust_gat_model_path}'.")
     print("--- Completed Adversarial GAT Training ---")
 

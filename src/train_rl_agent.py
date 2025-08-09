@@ -6,21 +6,20 @@ from tqdm import tqdm
 import random
 import pandas as pd
 
-from models import RL_GAT_Actor
+from src.models import RL_GAT_Actor
+from src.utils import set_seed
 
-
-def train_rl_agent(gat_model, node_info, dataset, directories):
+def train_rl_agent(gat_model, node_info, dataset, directories, device, seed=42):
     """
     Train the RL agent to generate a vulnerability map for the GAT decoder model.
     """
     print("--- Start Training RL Agent ---")
-    
+    set_seed(seed)
     RL_MODEL_PATH = directories.get("rl_model", "rl_model.pth")
 
     # --- 1. Load dataset ---
     num_rounds = node_info["num_rounds"]
     num_spatial_nodes = node_info["num_spatial_nodes"]
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Split dataset into negative and positive samples
     negative_samples = [data for data in dataset if data.y.item() == 0]
@@ -29,17 +28,16 @@ def train_rl_agent(gat_model, node_info, dataset, directories):
     print(f"Negative samples (no error): {len(negative_samples)}")
     print(f"Positive samples (with error): {len(positive_samples)}")
 
-    # --- 2. Configure GAT_Decoder ---
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     gat_model.to(device)
     gat_model.eval()
 
-    # --- 3. Load RL agent and Start Training ---
-    print("\n--- 3. Load RL agent and start training ---")
+    # --- 2. Load RL agent and Start Training ---
+    print("\n--- 2. Load RL agent and start training ---")
     train_size = int(0.8 * len(negative_samples))
     test_size = len(negative_samples) - train_size
-    train_neg_samples, test_neg_samples = random_split(negative_samples, [train_size, test_size])
+    g = torch.Generator()
+    g.manual_seed(42)  # Ensure reproducibility in data splitting
+    train_neg_samples, test_neg_samples = random_split(negative_samples, [train_size, test_size], generator=g)
     print(f"Number of training samples: {len(train_neg_samples)}, Number of evaluation samples: {len(test_neg_samples)}")
 
     rl_model = RL_GAT_Actor(
@@ -133,8 +131,8 @@ def train_rl_agent(gat_model, node_info, dataset, directories):
     print(f"Trained RL agent saved to '{RL_MODEL_PATH}'.")
 
 
-    # --- 5. Plot Training Curves ---
-    print("\n--- 5. Plot Training Curves ---")
+    # --- 3. Plot Training Curves ---
+    print("\n--- 3. Plot Training Curves ---")
     fig, axs = plt.subplots(3, 1, figsize=(8, 12), sharex=True)
     
     # Define a moving average function

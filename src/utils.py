@@ -1,12 +1,56 @@
 import torch
 from torch_geometric.loader import DataLoader
-from torch_geometric.data import Data
+from torch_geometric.data import Data, Batch
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from tqdm import tqdm
+import random
 
+def set_seed_for_reproducibility(seed):
+    """
+    Set random seed for reproducibility across PyTorch, NumPy, and random.
+    This function ensures that the results are consistent across runs by fixing the random seed.
+    """
+    # --- Basic seed fixing ---
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+    # --- CUDA-related seed fixing ---
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # for multi-GPU
+
+    # --- Disable non-deterministic algorithms for CUDA ---
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
+    # This is to ensure that all operations are deterministic.
+    # This may slow down some operations
+    try:
+        torch.use_deterministic_algorithms(True)
+    except AttributeError:
+        # This function may not be available in older PyTorch versions
+        print("Warning: torch.use_deterministic_algorithms is not available. Reproducibility may not be guaranteed.")
+
+    # This environment variable may be necessary to ensure the determinism of certain CUDA convolution operations
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
+def set_seed(seed):
+    """Set random seed for reproducibility."""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 def create_flattened_graph_from_shot(node_features_shot, logical_flip_shot, static_edge_index, static_edge_weights):
     node_features = torch.tensor(node_features_shot, dtype=torch.float)
@@ -14,15 +58,13 @@ def create_flattened_graph_from_shot(node_features_shot, logical_flip_shot, stat
     return Data(x=node_features, edge_index=static_edge_index, edge_attr=static_edge_weights, y=graph_label)
 
 def cultivate_edge_weights(edge_index):
-    torch.manual_seed(42)  # for reproducibility
     num_edges = edge_index.size(1)
     weights = torch.rand(num_edges, 1, dtype=torch.float)
     return weights
 
-def evaluate_agent(rl_model, target_model, test_samples, max_steps=10):
+def evaluate_agent(rl_model, target_model, test_samples, device, max_steps=10):
     """ Evaluate the RL agent's performance on the test samples."""
     print("\n--- Start Evaluation ---")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     target_model.to(device)
     rl_model.to(device)
     rl_model.eval()
@@ -78,7 +120,7 @@ def evaluate_agent(rl_model, target_model, test_samples, max_steps=10):
     print(f"Average Flips for Successful Attacks: {avg_flips:.2f}")
     print("------------------")
 
-def generate_vulnerability_map(rl_model, target_model, node_info, dataset, directories, filename):
+def generate_vulnerability_map(rl_model, target_model, node_info, dataset, directories, filename, device, seed=42):
     """
     Use RL Agent to generate a vulnerability map for the GAT decoder model.
     """
@@ -87,9 +129,9 @@ def generate_vulnerability_map(rl_model, target_model, node_info, dataset, direc
 
     num_rounds = node_info["num_rounds"]
     num_spatial_nodes = node_info["num_spatial_nodes"]
-    negative_samples = [data for data in dataset if data.y.item() == 0]
+    dataset_on_cpu = [data.to("cpu") for data in dataset]
+    negative_samples = [data for data in dataset_on_cpu if data.y.item() == 0]
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     target_model.to(device)
     rl_model.to(device)
     target_model.eval()
@@ -99,14 +141,19 @@ def generate_vulnerability_map(rl_model, target_model, node_info, dataset, direc
     print("\n--- 1. Attack simulation and vulnerability location aggregation ---")
     test_samples = []
     with torch.no_grad():
-        loader = DataLoader(negative_samples, batch_size=512, shuffle=False)
+        g = torch.Generator()
+        g.manual_seed(seed)  # Ensure reproducibility in data splitting
+        loader = DataLoader(negative_samples, batch_size=512, shuffle=False, worker_init_fn=seed_worker, generator=g)
         for batch_data in tqdm(loader, desc="Filtering test samples"):
+            # Split the batch into individual graphs
             batch_data = batch_data.to(device)
-            output = target_model(batch_data)
-            preds = (output <= 0.0) # If the output is less than or equal to 0, it is considered a negative sample
-
-            # Split the batch into individual graphs and add only the correctly classified ones
             data_list = batch_data.to_data_list()
+            # Stack into a batch again
+            batch = Batch.from_data_list(data_list)
+            output = target_model(batch)
+            preds = (torch.sigmoid(output) <= 0.5) # If the output is less than or equal to 0.5, it is considered a negative sample
+
+            # Add only the correctly classified ones (move back to cpu for later use)
             for i in range(len(preds)):
                 if preds[i].item():
                     test_samples.append(data_list[i].cpu())
@@ -140,8 +187,8 @@ def generate_vulnerability_map(rl_model, target_model, node_info, dataset, direc
                 
                 current_data = next_data
 
-    # --- 4. Create vulnerability map ---
-    print("\n--- 4. Create vulnerability map ---")
+    # --- 2. Create vulnerability map ---
+    print("\n--- 2. Create vulnerability map ---")
     if np.sum(vulnerability_map) == 0:
         print("No attacks were successful. Heatmap will not be created.")
         return

@@ -4,12 +4,11 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import torch
 import os
-import sys
 
-from models import GAT_GNN
-from dataset import create_dataset_from_shots
+from src.models import GAT_GNN
+from src.utils import set_seed, seed_worker
 
-def train_gat_decoder(node_info, dataset, directories):
+def train_gat_decoder(node_info, dataset, directories, device, seed=42):
     """
     Train the GAT decoder model on the dataset created from shots.
     """
@@ -17,12 +16,13 @@ def train_gat_decoder(node_info, dataset, directories):
     MODEL_DIR = directories.get("gat_model", "model.pth")
     num_rounds = node_info["num_rounds"]
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
-    train_dataset, test_dataset = random_split(dataset, [train_size, test_size], generator=torch.Generator().manual_seed(42))
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=64)
+    g = torch.Generator()
+    g.manual_seed(seed)  # Ensure reproducibility in data splitting
+    train_dataset, test_dataset = random_split(dataset, [train_size, test_size], generator=g)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, worker_init_fn=seed_worker, generator=g)
+    test_loader = DataLoader(test_dataset, batch_size=64, worker_init_fn=seed_worker, generator=g)
 
     #--- 1. Check dataset label distribution and create pos_weight ---
     all_labels = torch.cat([data.y for data in dataset])
@@ -78,7 +78,6 @@ def train_gat_decoder(node_info, dataset, directories):
         if epoch % 10 == 0 or epoch == 49:
             print(f"Epoch {epoch:03d}, Avg BCE Loss: {avg_loss:.4f}, Test Accuracy: {accuracy:.4f}")
     print("--- Completed GAT Training ---")
-    model.to("cpu")
     torch.save(model.state_dict(), MODEL_DIR)
     print(f"Trained GAT decoder model saved to '{MODEL_DIR}'.")
 
