@@ -24,10 +24,10 @@ Graph Neural Networks (GNNs) have emerged as a powerful, data-driven approach fo
 ├── 📄 requirements.txt      # Required Python packages (excluding PyTorch/PyG)
 │
 ├── 📂 data/                  # Contains the preprocessed surface code data
-│   ├── circuit_ideal.stim
-│   ├── circuit_detector_error_model.dem
-│   ├── detection_events_new.b8
-│   └── obs_flips_actual_new.01
+│   └── 📂 surface_code_bX_d3_r01_center_3_5/
+│       ├── 📄 circuit_detector_error_model.dem
+│       ├── 📄 detection_events_new.b8
+│       └── 📄 obs_flips_actual_new.01
 │
 ├── 📂 src/                   # All Python source code
 │   ├── 📄 dataset.py         # Data loading and graph construction logic
@@ -36,6 +36,8 @@ Graph Neural Networks (GNNs) have emerged as a powerful, data-driven approach fo
 │   ├── 📄 train_rl_agent.py  # Script to train the adversarial RL agent
 │   ├── 📄 train_adversarial_decoder.py # Script for adversarial retraining
 │   └── 📄 utils.py           # Helper functions (seeding, evaluation, plotting)
+│
+├── 📂 model/                 # Directory where trained models are saved
 │
 ├── 📂 figures/               # Directory where generated figures are saved
 │
