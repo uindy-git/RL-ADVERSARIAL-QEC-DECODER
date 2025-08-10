@@ -1,4 +1,3 @@
-# RL-ADVERSARIAL-QEC-DECODER
 # GNN-based QEC Decoders: Adversarial Probing and Robustness Enhancement
 
 This repository contains the official source code and data to reproduce the results presented in our papers on developing, analyzing, and enhancing GNN-based decoders for Quantum Error Correction (QEC).
