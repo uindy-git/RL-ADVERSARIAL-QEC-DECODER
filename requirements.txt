@@ -1,0 +1,15 @@
+--- Core ML/Data Science Libraries ---
+These packages are platform-independent.
+numpy
+pandas
+scipy
+matplotlib
+seaborn
+tqdm
+stim
+
+--- PyTorch & PyG ---
+IMPORTANT: PyTorch and PyTorch Geometric must be installed manually
+according to your specific hardware (CPU/CUDA version).
+Please follow the detailed instructions in README.md before installing
+the packages from this file.
