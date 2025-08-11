@@ -21,9 +21,9 @@ if __name__ == "__main__":
         "dem": "data/surface_code_bX_d3_r01_center_3_5/circuit_detector_error_model.dem",
         "syndromes": "data/surface_code_bX_d3_r01_center_3_5/detection_events_new.b8",
         "logical_flips": "data/surface_code_bX_d3_r01_center_3_5/obs_flips_actual_new.01",
-        "gat_model": "model/gat_decoder.pth",
-        "rl_model": "model/rl_agent.pth",
-        "robust_gat_model": "model/robust_gat_decoder.pth",
+        "gat_model": "models/gat_decoder.pth",
+        "rl_model": "models/rl_agent.pth",
+        "robust_gat_model": "models/robust_gat_decoder.pth",
         "figures": "figures",
     }
     rl_vul_map_filename1 = "heatmap1.pdf"
