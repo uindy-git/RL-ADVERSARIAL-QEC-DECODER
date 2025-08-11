@@ -37,7 +37,7 @@ Graph Neural Networks (GNNs) have emerged as a powerful, data-driven approach fo
 │   ├── 📄 train_adversarial_decoder.py # Script for adversarial retraining
 │   └── 📄 utils.py           # Helper functions (seeding, evaluation, plotting)
 │
-├── 📂 model/                 # Directory where trained models are saved
+├── 📂 models/                 # Directory where trained models are saved
 │
 ├── 📂 figures/               # Directory where generated figures are saved
 │
